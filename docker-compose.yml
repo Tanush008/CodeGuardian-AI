@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  codeguardian:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - chroma_data:/app/data/chroma
+    restart: unless-stopped
+
+volumes:
+  chroma_data:

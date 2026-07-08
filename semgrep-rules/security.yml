@@ -1,0 +1,77 @@
+rules:
+  - id: sql-string-concat-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SQL query string is built with string formatting/concatenation instead
+      of a parameterized query, then passed to execute(). This allows SQL
+      injection if any part of the formatted value is user-controlled.
+    pattern-sources:
+      - pattern: "... % ..."
+      - pattern: "... + ..."
+      - pattern: f"..."
+    pattern-sinks:
+      - pattern: $CONN.execute(...)
+
+  - id: python-eval-usage
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Use of eval() on data that may include external input can lead to
+      arbitrary code execution.
+    pattern: eval(...)
+
+  - id: python-exec-usage
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Use of exec() on data that may include external input can lead to
+      arbitrary code execution.
+    pattern: exec(...)
+
+  - id: hardcoded-secret-assignment
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Variable name suggests a secret/credential assigned a literal string.
+      Secrets should come from environment variables or a secrets manager.
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)(api_key|secret|password|token|access_key)
+
+  - id: insecure-deserialization-pickle
+    languages: [python]
+    severity: ERROR
+    message: >-
+      pickle.loads() on untrusted data can lead to arbitrary code execution.
+      Use a safe serialization format (JSON) for untrusted input.
+    pattern: pickle.loads(...)
+
+  - id: subprocess-shell-true
+    languages: [python]
+    severity: WARNING
+    message: >-
+      subprocess call with shell=True and dynamic input risks shell
+      injection. Prefer passing args as a list with shell=False.
+    patterns:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+
+  - id: javascript-eval-usage
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Use of eval() can lead to arbitrary code execution if given
+      untrusted input.
+    pattern: eval(...)
+
+  - id: js-innerhtml-assignment
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Assigning to innerHTML with dynamic content can lead to XSS if the
+      content includes unsanitized user input.
+    pattern: $EL.innerHTML = $VAL
