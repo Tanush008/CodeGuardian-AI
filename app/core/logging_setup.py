@@ -1,4 +1,11 @@
-"""Structured JSON logging so logs are queryable once deployed on Render/Railway."""
+"""Structured JSON logging so logs are queryable once deployed on Render/Railway.
+
+CRITICAL: this must log to stderr, never stdout. app/mcp_servers/github_mcp.py
+runs as an MCP stdio server subprocess, and the MCP stdio transport reserves
+stdout exclusively for JSON-RPC protocol messages. Any log line written to
+stdout corrupts that stream and causes 'Failed to parse JSONRPC message from
+server' errors on the client side, silently breaking every tool call.
+"""
 import logging
 import sys
 

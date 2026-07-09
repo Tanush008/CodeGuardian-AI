@@ -30,7 +30,7 @@ def run_expr(user_input):
 '''
 
 FAKE_SECRET_SNIPPET = '''
-API_KEY = "sk_fake_51H8x9aB3cD4eF5gH6iJ7kL8mN9oP0qR"
+API_KEY = "sk_test_51H8x9aB3cD4eF5gH6iJ7kL8mN9oP0qR"
 '''
 
 

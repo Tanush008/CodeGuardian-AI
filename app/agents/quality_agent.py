@@ -61,18 +61,19 @@ async def _review_file(path: str, content: str) -> list[Finding]:
     return findings
 
 
-async def quality_agent_node(state: ReviewState) -> ReviewState:
+async def quality_agent_node(state: ReviewState) -> dict:
     files = state["changed_files"]
     logger.info("quality_agent_start", file_count=len(files))
 
     all_findings: list[Finding] = []
-    errors = list(state.get("errors", []))
+    new_errors: list[str] = []
     for path, content in files.items():
         try:
             all_findings.extend(await _review_file(path, content))
         except Exception as exc:  # noqa: BLE001 - a single file failing shouldn't kill the review
-            errors.append(f"quality review of {path} failed: {exc}")
+            new_errors.append(f"quality review of {path} failed: {exc}")
             logger.error("quality_agent_file_failed", file=path, error=str(exc))
 
     logger.info("quality_agent_complete", finding_count=len(all_findings))
-    return {**state, "quality_findings": all_findings, "errors": errors}
+    # Only return this node's own keys — see security_agent_node for why.
+    return {"quality_findings": all_findings, "errors": new_errors}

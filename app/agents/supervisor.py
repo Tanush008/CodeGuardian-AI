@@ -39,9 +39,8 @@ async def fetch_changed_files_node(state: ReviewState) -> ReviewState:
 
         print("DEBUG files_meta type:", type(files_meta), "value:", files_meta, flush=True)
         if isinstance(files_meta, dict):
-            # If for some reason it returned a dict instead of a list, maybe it's an error payload
-            print("ERROR payload returned from fastmcp:", files_meta)
-            files_meta = []
+            # If fastmcp returns a single dictionary instead of a list (when only 1 file is changed)
+            files_meta = [files_meta]
         elif isinstance(files_meta, str):
             import json
             try:

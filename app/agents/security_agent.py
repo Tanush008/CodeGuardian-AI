@@ -69,7 +69,7 @@ def _get_code_context(files: dict[str, str], file_path: str, line: int, window: 
     return "\n".join(lines[start:end])
 
 
-async def security_agent_node(state: ReviewState) -> ReviewState:
+async def security_agent_node(state: ReviewState) -> dict:
     files = state["changed_files"]
     logger.info("security_agent_start", file_count=len(files))
 
@@ -77,11 +77,11 @@ async def security_agent_node(state: ReviewState) -> ReviewState:
         run_semgrep(files), run_bandit(files), run_gitleaks(files), return_exceptions=True
     )
 
-    errors = list(state.get("errors", []))
+    new_errors: list[str] = []
     raw_findings: list[dict] = []
     for tool_name, result in zip(("semgrep", "bandit", "gitleaks"), raw_findings_lists):
         if isinstance(result, Exception):
-            errors.append(f"{tool_name} failed: {result}")
+            new_errors.append(f"{tool_name} failed: {result}")
             logger.error("analyzer_failed", tool=tool_name, error=str(result))
         else:
             raw_findings.extend(result)
@@ -94,4 +94,8 @@ async def security_agent_node(state: ReviewState) -> ReviewState:
     )
 
     logger.info("security_agent_complete", raw_count=len(raw_findings), triaged_count=len(triaged))
-    return {**state, "security_findings": list(triaged), "errors": errors}
+    # Only return the keys this node owns. Do NOT spread `**state` here —
+    # this node runs in parallel with quality_agent_node, and both writing
+    # the full state (including untouched keys like pr_context/changed_files)
+    # causes a LangGraph InvalidUpdateError.
+    return {"security_findings": list(triaged), "errors": new_errors}
