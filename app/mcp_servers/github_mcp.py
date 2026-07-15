@@ -121,6 +121,18 @@ async def post_review_comment(installation_id: int, owner: str, repo: str, pr_nu
     logger.info("posted_review_comment", owner=owner, repo=repo, pr=pr_number, comment_id=data["id"])
     return {"id": data["id"], "html_url": data["html_url"]}
 
+@mcp.tool()
+async def get_pr_head_sha(installation_id: int, owner: str, repo: str, pr_number: int) -> str:
+    """Return the head commit SHA of a pull request — the only `ref` value
+    that the Contents API will actually resolve for content still on the PR
+    branch (it does not understand `refs/pull/N/head`)."""
+    token = await github_app_auth.get_installation_token(installation_id)
+    url = f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}"
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(url, headers=_headers(token))
+        resp.raise_for_status()
+        return resp.json()["head"]["sha"]
+
 
 if __name__ == "__main__":
     mcp.run()

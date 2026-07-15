@@ -25,6 +25,16 @@ logger = get_logger(__name__)
 
 _RULES_PATH = Path(__file__).resolve().parent.parent.parent / "semgrep-rules"
 
+# Semgrep only ever emits ERROR/WARNING/INFO natively. Map those onto the
+# same CRITICAL/HIGH/MEDIUM/LOW/INFO scale that bandit_runner and
+# gitleaks_runner already use, so the Aggregator's severity sort and
+# summary counts stay meaningful across all three tools.
+_SEMGREP_SEVERITY_MAP = {
+    "ERROR": "HIGH",
+    "WARNING": "MEDIUM",
+    "INFO": "LOW",
+}
+
 
 async def run_semgrep(files: dict[str, str]) -> list[dict]:
     """files: {relative_path: file_content}. Returns a list of normalized
@@ -62,11 +72,12 @@ async def run_semgrep(files: dict[str, str]) -> list[dict]:
         findings = []
         for r in data.get("results", []):
             rel_file = str(Path(r["path"]).relative_to(tmp_path))
+            raw_severity = r.get("extra", {}).get("severity", "INFO").upper()
             findings.append(
                 {
                     "tool": "semgrep",
                     "rule_id": r.get("check_id", "unknown"),
-                    "severity": r.get("extra", {}).get("severity", "INFO").upper(),
+                    "severity": _SEMGREP_SEVERITY_MAP.get(raw_severity, "LOW"),
                     "file": rel_file,
                     "line": r.get("start", {}).get("line", 0),
                     "message": r.get("extra", {}).get("message", ""),

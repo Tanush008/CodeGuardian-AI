@@ -18,7 +18,6 @@ from app.mcp_servers.github_mcp_client import GitHubMCPClient
 
 logger = get_logger(__name__)
 
-
 async def fetch_changed_files_node(state: ReviewState) -> ReviewState:
     """Fan-in point for GitHub data fetch: pulls the diff file list and full
     content for each changed (non-deleted) file via the MCP client, capped
@@ -27,6 +26,16 @@ async def fetch_changed_files_node(state: ReviewState) -> ReviewState:
     errors = list(state.get("errors", []))
 
     async with GitHubMCPClient() as client:
+        head_sha = await client.call_tool(
+            "get_pr_head_sha",
+            {
+                "installation_id": ctx["installation_id"],
+                "owner": ctx["owner"],
+                "repo": ctx["repo"],
+                "pr_number": ctx["pr_number"],
+            },
+        )
+
         files_meta = await client.call_tool(
             "list_changed_files",
             {
@@ -36,20 +45,17 @@ async def fetch_changed_files_node(state: ReviewState) -> ReviewState:
                 "pr_number": ctx["pr_number"],
             },
         )
-
-        print("DEBUG files_meta type:", type(files_meta), "value:", files_meta, flush=True)
+        
         if isinstance(files_meta, dict):
             # If fastmcp returns a single dictionary instead of a list (when only 1 file is changed)
             files_meta = [files_meta]
         elif isinstance(files_meta, str):
             import json
             try:
-                # In case fastmcp serialized with str() instead of json, fix single quotes (hacky but works for debug)
                 files_meta = json.loads(files_meta.replace("'", '"'))
-            except Exception as e:
-                print("Failed to fix fastmcp string:", e)
+            except Exception:
                 files_meta = []
-                
+
         files_meta = files_meta[: settings.max_diff_files]
         changed_files: dict[str, str] = {}
 
@@ -64,12 +70,12 @@ async def fetch_changed_files_node(state: ReviewState) -> ReviewState:
                         "owner": ctx["owner"],
                         "repo": ctx["repo"],
                         "path": f["filename"],
-                        "ref": f"refs/pull/{ctx['pr_number']}/head",
+                        "ref": head_sha,
                     },
                 )
                 if isinstance(content, str) and len(content.encode("utf-8")) <= settings.max_file_bytes:
                     changed_files[f["filename"]] = content
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(f"could not fetch {f['filename']}: {exc}")
                 logger.warning("file_fetch_failed", file=f["filename"], error=str(exc))
 

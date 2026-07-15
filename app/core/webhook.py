@@ -21,10 +21,13 @@ from app.core.logging_setup import configure_logging, get_logger
 from app.rag.standards_store import standards_store
 import sys
 import asyncio
+
 configure_logging()
 logger = get_logger(__name__)
 
 app = FastAPI(title="CodeGuardian AI", version="0.1.0")
+
+logger.info("startup_config", groq_model=settings.groq_model)
 
 _TRIGGER_ACTIONS = {"opened", "synchronize", "reopened"}
 
