@@ -224,6 +224,6 @@ These results will be added here once collected.
 - Quality review is only as good as the `coding-standards.md` it's given; a thin or generic standards doc will produce thin or generic review comments.
 - Gitleaks requires a separate binary install (not distributed via pip), which adds a small amount of setup friction versus Semgrep/Bandit.
 
----
+----------
 
 Built by [Tanush008](https://github.com/Tanush008).
