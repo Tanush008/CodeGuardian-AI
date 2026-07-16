@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # config.py loads these via pydantic-settings — dummy values so app import doesn't crash in CI
+      GROQ_API_KEY: dummy-key-for-ci
+      GITHUB_APP_ID: "12345"
+      GITHUB_PRIVATE_KEY_PATH: ./tests/fixtures/dummy_key.pem
+      GITHUB_WEBHOOK_SECRET: dummy-secret
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install semgrep (needed for test_analyzers.py)
+        run: pip install semgrep==1.87.0
+
+      - name: Create dummy RSA private key for CI
+        run: |
+          mkdir -p tests/fixtures
+          python - <<'EOF'
+          from cryptography.hazmat.primitives.asymmetric import rsa
+          from cryptography.hazmat.primitives import serialization
+          key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+          pem = key.private_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PrivateFormat.TraditionalOpenSSL,
+              encryption_algorithm=serialization.NoEncryption(),
+          )
+          open("tests/fixtures/dummy_key.pem", "wb").write(pem)
+          print("dummy_key.pem created")
+          EOF
+
+      - name: Run tests
+        run: pytest -v
+
+  self-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install semgrep + bandit
+        run: pip install semgrep==1.87.0 bandit
+
+      - name: Run Semgrep on app/
+        run: |
+          if [ -d semgrep-rules ]; then
+            semgrep --config semgrep-rules/ app/ || true
+          else
+            echo "semgrep-rules/ not found, skipping custom rules"
+            semgrep --config auto app/ || true
+          fi
+
+      - name: Run Bandit on app/
+        run: bandit -r app/ || true
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t codeguardian:ci .
