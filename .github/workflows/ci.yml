@@ -47,7 +47,6 @@ jobs:
           open("tests/fixtures/dummy_key.pem", "wb").write(pem)
           print("dummy_key.pem created")
           EOF
-
       - name: Run tests
         run: pytest -v
 
@@ -74,7 +73,6 @@ jobs:
             echo "semgrep-rules/ not found, skipping custom rules"
             semgrep --config auto app/ || true
           fi
-
       - name: Run Bandit on app/
         run: bandit -r app/ || true
 
