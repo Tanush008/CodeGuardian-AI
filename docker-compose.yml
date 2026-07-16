@@ -8,10 +8,9 @@ services:
     env_file:
       - .env
     volumes:
-      - ./app:/app/app
       - ./secrets:/app/secrets:ro
       - chroma_data:/app/data/chroma
-    command: ["uvicorn", "app.core.webhook:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "app.core.webhook:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
     restart: unless-stopped
 
 volumes:
